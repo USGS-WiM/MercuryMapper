@@ -1,0 +1,795 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 01.30.14 - NE - Added event listeners to halt printing if huc data is not yet drawn on the map. -->
+<!-- 12.10.12 - NE - Added new gray basemap to basemap selector. -->
+<!-- 02.06.12 - NE - Added dynamic legends. -->
+<!-- 01.24.12 - NE - Updated to show 'No Data' rather than 'n/a' when constituent value not available for a HUC. -->
+<!-- 03.13.11 - NE - Added empty HUCs to map. -->
+<!-- 03.13.11 - NE - Added help link and tooltip for available layers. -->
+<!-- 03.11.11 - NE - Removed Total Mercury as a constituent.  Added new legends. -->
+<!-- 03.10.11 - NE - Changed network/unit finder reset button label to "clear" -->
+<!-- 03.02.11 - NE - Fixed hint text issue in CollapsingSearch. -->
+<!-- 03.02.11 - NE - Brightened lettering with use of backgroundAlpha rather than alpha on elements. -->
+<!-- 03.01.11 - NE - Added DataDownloadWindow. -->
+<!-- 02.28.11 - NE - Updated basemap selector to WiM component. Adjusted transparencies for many elements. -->
+<!-- 02.28.11 - NE - Made separate buttons for each tool. -->
+<!-- 02.23.11 - NE - Added ability to search by park code and park name before Bing geocode. -->
+<!-- 02.22.11 - NE - Added draft service that will mimic final service. -->
+<!-- 02.22.11 - NE - Changed geocoder to CollapsingSearch control. -->
+<!-- 02.17.11 - NE - Changed opacity of map layer to 0.75 -->
+<!-- 02.17.11 - NE - Changed extent navigator to mini version. -->
+<!-- 02.02.11 - NE - Added MercuryDataWindow to checkout. -->
+<!-- 12.15.10 - NE - Added right click zoom out behavior. -->
+<!-- 11.04.10 - NE - Reworked network/unit search.  Allows search by unit only.  Allows user to type in combo input. -->
+<!-- 11.03.10 - NE - Added WiM Logo -->
+<!-- 10.28.10 - NE - Updated to new Bing Geocoder. -->
+<!-- 10.20.10 - NE - Converted to Flex 4 and ArcGIS Flex 2.1 Web API. -->
+<!-- 04.28.10 - NE - Added components to disply lat/lng of mouse position and map scale.  Using new service where some data reprojected to web mercator. -->
+<!-- 04.23.10 - NE - Added basic PDF print functionality. Added opacity slider to map service layer. -->
+<!-- 04.21.10 - NE - Adjusted infoWindow to more informatively display data. -->
+<!-- 04.20.10 - NE - Changed infoWindow functionality to show values of all constituents on all queries.  Highlighted value by layer being viewed. -->
+<!-- 04.19.10 - NE - Added Network/Unit Finder tool to zoom to extent of selected unit -->
+<!-- 04.15.10 - NE - Tweaked Layers box and explanation area size. -->
+<!-- 04.14.10 - NE - Added functionality to minimize/maximize available Layers box.  Tweaked layout. -->
+<!-- 03.29.10 - JB - Moved images and styles to assets directory -->
+<!-- 01.29.10 - JB - Used custom image component for shrinking effect, standardized layer toggling. -->
+<!-- 01.26.10 - JB - Split AS into seperate file -->
+<!-- 01.22.10 - JB - Initial code optimization. -->
+<mx:Application
+	xmlns:mx="library://ns.adobe.com/flex/mx" 
+	xmlns:fx="http://ns.adobe.com/mxml/2009" 
+	xmlns:s="library://ns.adobe.com/flex/spark"
+	xmlns:esri="http://www.esri.com/2008/ags"
+	xmlns:controls="controls.*"
+	xmlns:wim="gov.usgs.wim.controls.*"
+	pageTitle="Methylmercury Model"
+	layout="absolute" xmlns:navigationClasses="com.esri.ags.controls.navigationClasses.*" xmlns:layers="com.esri.ags.layers.*" >
+	
+	<fx:Style source="assets/styles/main.css"/>
+	<fx:Script source="MercuryMapper.as" />
+	
+	<fx:Declarations>
+		
+		<esri:NavigationTool id="navToolbar" map="{map}"/>
+		
+		<!-- Wetlands Query Definition -->
+		
+		<esri:SimpleFillSymbol id="wetQuerySym" style="null" color="0x000000" alpha="0.25">
+			<esri:outline>
+				<esri:SimpleLineSymbol style="solid" color="0xFFFF00" width="2" />
+			</esri:outline>
+		</esri:SimpleFillSymbol>
+		
+		<esri:FindTask id="parkTask"
+					   executeComplete="parkResult(event)"
+					   url="{resourceManager.getString('urls', 'HgDataUrl')}"/>
+		<esri:FindParameters id="parkParams"
+							 contains="true"
+							 layerIds="[3]"
+							 outSpatialReference="{map.spatialReference}"
+							 returnGeometry="true"
+							 searchFields="[PARK,PARK_NAME]"
+							 searchText="{geocoder.searchValue.text}"/>
+
+		<s:RadioButtonGroup id="dataSourceOpt" />
+		
+		<fx:Array id="iconArray">             
+			<fx:Object icon="{grayCanvasIcon}">
+				<fx:toolTip>NPS basemap</fx:toolTip>
+			</fx:Object>  
+			<fx:Object icon="{satelliteIcon}">
+				<fx:toolTip>Imagery/Labels</fx:toolTip>
+			</fx:Object>
+			<fx:Object icon="{mountainIcon}">
+				<fx:toolTip>Topo</fx:toolTip>
+			</fx:Object>
+			<fx:Object icon="{streetsIcon}">
+				<fx:toolTip>Streets</fx:toolTip>
+			</fx:Object>
+		</fx:Array>
+		
+		<s:RichText id="sulfateLabel" color="0xDDDDDD" textAlign="left" verticalAlign="middle" height="100%">
+			<s:span>Sulfate (mg/L as SO</s:span>
+			<s:span baselineShift="subscript">4</s:span>
+			<s:span>)</s:span>
+		</s:RichText>
+		
+		<!-- Info Box Symbol for displaying layer query results -->
+		
+		<esri:InfoSymbol id="wetlandsGraphicSym" infoPlacement="{windLoc}" containerStyleName="wetInfo" >
+			<esri:infoRenderer>
+				<fx:Component>
+					<mx:VBox styleName="infoBox" width="100%" >
+						<fx:Style source="assets/styles/infoSymbolBox.css"/>		   				
+						<fx:Script>
+							<![CDATA[
+								private function infoClear():void
+								{
+									parent.parent.visible = false;
+								}
+							]]>
+						</fx:Script>
+						<mx:HBox width="100%">
+							<mx:Label text="{data.infoTitle}" color="white" fontWeight="bold" fontSize="12" />
+							<mx:HBox width="100%" horizontalGap="0" />
+							<mx:Button styleName="InfoCloseButton" height="18" width="18" click="infoClear()"/>
+						</mx:HBox>
+						<mx:VBox id="values" styleName="poiContain" width="100%" paddingTop="10" paddingBottom="5" paddingLeft="5" paddingRight="5" verticalGap="0">
+							<mx:HBox fontWeight="{(data.infoTitle == 'Predicted MeHg') ? 'bold' : 'normal'}" horizontalGap="0">
+								<mx:Text text="Predicted MeHg (ng/L):" />
+								<mx:Text text="{data.PMEHG}" />
+								<mx:Text text="*" color="0xFF0000" />
+							</mx:HBox>
+							<mx:HBox fontWeight="{(data.infoTitle == 'Wetlands') ? 'bold' : 'normal'}" horizontalGap="0">
+								<mx:Text text="Percentage covered by wetlands:" />
+								<mx:Text text="{(data.NLCDP9 == undefined || data.NLCDP9 == null || data.NLCDP9 == '0') ? 'No Data' : data.NLCDP9}" />
+							</mx:HBox>
+							<mx:HBox fontWeight="{(data.infoTitle == 'pH') ? 'bold' : 'normal'}" horizontalGap="0">
+								<mx:Text text="pH:" />
+								<mx:Text text="{data.MED_PH}" />
+								<mx:Text text="*" color="0xFF0000" />
+							</mx:HBox>
+							<mx:HBox fontWeight="{(data.infoTitle == 'Sulfate') ? 'bold' : 'normal'}" horizontalGap="0">
+								<mx:Text text="Sulfate (mg/L):" />
+								<mx:Text text="{data.MED_SULFAT}" />
+								<mx:Text text="*" color="0xFF0000" />
+							</mx:HBox>
+							<mx:HBox fontWeight="{(data.infoTitle == 'Carbon') ? 'bold' : 'normal'}" horizontalGap="0">
+								<mx:Text text="Total Organic Carbon (mg/L):" />
+								<mx:Text text="{data.MED_CARBON}" />
+								<mx:Text text="*" color="0xFF0000" />
+							</mx:HBox>
+							<mx:Text text="*median value for HUC" color="0xFF0000" fontWeight="bold" />
+						</mx:VBox>
+					</mx:VBox>
+				</fx:Component>
+			</esri:infoRenderer>
+		</esri:InfoSymbol>
+		
+		<!-- Info Box Symbol for displaying layer query results -->
+		
+		
+		<esri:Locator id="locator"  outSpatialReference="{map.spatialReference}" url="https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer"/>
+		
+		<mx:Canvas id="pdfHeader" width="300" height="100">
+			<mx:HBox color="white" backgroundColor="black" borderStyle="solid" borderColor="black" cornerRadius="5" top="5" left="5">
+				<mx:Image source="./assets/images/usgsLogo.png" top="10" left="10" height="80" width="200" useHandCursor="true" buttonMode="true" mouseChildren="false" toolTip="USGS Links" click="showPopUpBox(event, 'headerFooterLinkBox')"/>
+				<mx:VBox backgroundColor="black" width="100%" height="74" paddingLeft="10" paddingRight="20" verticalGap="0" >
+					<s:Label text="{resourceManager.getString('ui.text', 'mainTitle')}" width="430" color="white" paddingTop="10" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="22"/>
+					<!--<mx:Label text="Beta Version" color="0xDDDDDD" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="18"/>-->
+				</mx:VBox>
+				<mx:VBox paddingTop="4">
+					<mx:Image source="./assets/images/npsLogo.png" height="72" useHandCursor="true" buttonMode="true" mouseChildren="false" toolTip="NPS" click="navigateToURL(new URLRequest('http://www.nps.gov'))"/>
+				</mx:VBox>
+			</mx:HBox>
+		</mx:Canvas>
+		
+		<!--<s:HTTPService id="networkLegendService" 					  
+					   url="{resourceManager.getString('urls', 'HgDataUrl')}/legend?f=json"					   
+					   result="legendResults(event, networkLegend, new ArrayCollection([1]))"
+					   fault="queryFault(event)" />
+		
+		<s:HTTPService id="unitLegendService" 					  
+					   url="{resourceManager.getString('urls', 'HgDataUrl')}/legend?f=json"					   
+					   requestTimeout="0"
+					   result="legendResults(event, unitLegend, unitVis)"
+					   fault="queryFault(event)" />
+		
+		<s:HTTPService id="hgLegendService" 					  
+					   url="{resourceManager.getString('urls', 'HgDataUrl')}/legend?f=json"					   
+					   requestTimeout="0"
+					   result="legendResults(event, siteLegend, npsServices.visibleLayers as ArrayCollection)"
+					   fault="queryFault(event)" />-->
+		
+		<!-- WiM Disclaimer Text -->
+		<mx:Text id="disclaimerHtml" color="black">
+			<mx:htmlText>
+				<![CDATA[<font size='12' color='#000000'><p>Data in this mapper are provisional and subject to revision.</p><br/><p>This mapper is intended to assist park managers in understanding the relative potential for mercury issues in their park unit. The data in this mapper do not represent measured methylmercury concentrations, but rather a predicted methylmercury concentration based on measured water quality and landscape variables believed to influence methylation in natural systems. Data are modeled to 8-digit hydrologic units.</p><br/><p>References to non-U.S. Department of Interior (DOI) products do not constitute endorsement by the DOI.</p></font>]]>
+			</mx:htmlText>
+		</mx:Text>
+		
+		
+		<!--USGS HeaderFooter Link Box -->
+		<s:BorderContainer 
+			id="headerFooterLinkBox" 
+			backgroundColor="white" 
+			cornerRadius="5" 
+			mouseOut="popUp_mouseOutHandler(event)"
+			height="100%"
+			>						
+			
+			<s:VGroup width="100%">
+				
+				<mx:HBox backgroundColor="black" textAlign="center" cornerRadius="5" width="100%" paddingTop="5" paddingLeft="5" paddingBottom="5" paddingRight="5">
+					<mx:Text width="100%" color="white" fontSize="14" fontWeight="bold" text="{resourceManager.getString('ui.text', 'headerFooterLinks')}" />
+				</mx:HBox>
+				
+				<mx:VBox width="170" height="100%">
+					
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingTop="5" paddingLeft="5" paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://www.usgs.gov/">USGS Home</a></p><br />				
+							]]>
+						</mx:htmlText>
+					</mx:Text>
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingLeft="5"  paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://www.usgs.gov/ask/">Contact USGS</a></p><br />			
+							]]>
+						</mx:htmlText>
+					</mx:Text>
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingLeft="5" paddingBottom="5" paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://search.usgs.gov/">Search USGS</a></p><br />						
+							]]>
+						</mx:htmlText>
+					</mx:Text>
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingLeft="5" paddingBottom="5" paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://www.usgs.gov/laws/accessibility.html">Accessibility</a></p><br />						
+							]]>
+						</mx:htmlText>
+					</mx:Text>
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingLeft="5" paddingBottom="5" paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://www.usgs.gov/foia/">FOIA</a></p><br />						
+							]]>
+						</mx:htmlText>
+					</mx:Text>
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingLeft="5" paddingBottom="5" paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://www.usgs.gov/laws/privacy.html">Privacy</a></p><br />						
+							]]>
+						</mx:htmlText>
+					</mx:Text>
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingLeft="5" paddingBottom="5" paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://www.usgs.gov/laws/policies_notices.html">Policies and Notices</a></p><br />						
+							]]>
+						</mx:htmlText>
+					</mx:Text>					
+				</mx:VBox>
+			</s:VGroup>			
+			
+		</s:BorderContainer>
+		<!--End USGS HeaderFooter Link Box-->
+		
+		<!--NPS Link Box -->
+		<s:BorderContainer 
+			id="NPSLinkBox" 
+			backgroundColor="white" 
+			cornerRadius="5" 
+			mouseOut="popUp_mouseOutHandler(event)"
+			height="100%">						
+			
+			<s:VGroup width="100%">
+				
+				<mx:HBox backgroundColor="black" textAlign="center" cornerRadius="5" width="100%" paddingTop="5" paddingLeft="5" paddingBottom="5" paddingRight="5">
+					<mx:Text width="100%" color="white" fontSize="14" fontWeight="bold" text="{resourceManager.getString('ui.text', 'NPSLinks')}" />
+				</mx:HBox>
+				
+				<mx:VBox width="100%" height="100%">
+					
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingTop="5" paddingLeft="5" paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://wi.water.usgs.gov/mercury/NPSHgMap.html">Science overview and explanation</a></p><br />				
+							]]>
+						</mx:htmlText>
+					</mx:Text>
+					<mx:Text width="100%" height="25" color="blue" textDecoration="underline" textAlign="left" condenseWhite="true" paddingLeft="5"  paddingRight="5">
+						<mx:htmlText>
+							<![CDATA[						
+							<p><a target="_blank" href="http://wi.water.usgs.gov/mercury/pdf/NPSHgMap_UserGuide.pdf">Mapper user guide</a></p><br />			
+							]]>
+						</mx:htmlText>
+					</mx:Text>				
+				</mx:VBox>
+			</s:VGroup>			
+			
+		</s:BorderContainer>
+		<!--End NPS Link Box-->
+		
+	</fx:Declarations>
+	
+	<!-- Main Map -->
+	
+	<esri:Map id="map" styleName="mapStyle" wrapAround180="true" load="load()" openHandCursorVisible="false" logoVisible="false" extentChange="onExtentChange(event)" navigationClass="gov.usgs.wim.controls.WiMNavigation" mapClick="onMapClick(event)">
+		<esri:extent>            
+			<esri:Extent id="init" xmin="-16397882.803961465" ymin="1731757.3128320083" xmax="-4891969.810253511" ymax="7602121.085131983">                
+				<esri:SpatialReference wkid="3857"/>            
+			</esri:Extent>        
+		</esri:extent>
+		<!--<esri:VETiledLayer 
+		visible="{mapType.selectedIndex == 0}"            
+		show="baseSwitch(event)"
+		environment="staging" 
+		tokenURL="http://137.227.242.82/DotNet/vetoken.ashx" 
+		mapStyle="road" />
+		<esri:VETiledLayer 
+		visible="{mapType.selectedIndex == 1}"            
+		show="baseSwitch(event)"
+		environment="staging" 
+		tokenURL="http://137.227.242.82/DotNet/vetoken.ashx" 
+		mapStyle="aerial" />
+		<esri:VETiledLayer 
+		visible="{mapType.selectedIndex == 2}"            
+		show="baseSwitch(event)"
+		environment="staging" 
+		tokenURL="http://137.227.242.82/DotNet/vetoken.ashx" 
+		mapStyle="aerialWithLabels" />-->
+		<esri:ArcGISTiledMapServiceLayer            
+			visible="{baseLayers.selectedLayer == 'Streets'}"     
+			show="baseSwitch(event)"    
+			url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" />
+		<esri:ArcGISTiledMapServiceLayer            
+			visible="{baseLayers.selectedLayer == 'Imagery/Labels'}"            
+			show="baseSwitch(event)"     
+			url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer" />
+		<esri:ArcGISTiledMapServiceLayer            
+			visible="{baseLayers.selectedLayer == 'Imagery/Labels'}"            
+			show="baseSwitch(event)"       
+			url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer" />
+		<esri:ArcGISTiledMapServiceLayer            
+			visible="{baseLayers.selectedLayer == 'Topo'}"            
+			show="baseSwitch(event)"      
+			url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer" />
+		<esri:ArcGISTiledMapServiceLayer            
+			visible="{baseLayers.selectedLayer == 'Gray'}"            
+			show="baseSwitch(event)"      
+			url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer" />
+		<esri:ArcGISTiledMapServiceLayer            
+			visible="{baseLayers.selectedLayer == 'Gray'}"            
+			show="baseSwitch(event)"      
+			url="https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer" />
+		<esri:ArcGISTiledMapServiceLayer            
+			visible="{baseLayers.selectedLayer == 'The National Map'}"            
+			show="baseSwitch(event)"      
+			url="https://basemap.nationalmap.gov/ArcGIS/rest/services/USGSTopo/MapServer" />
+		<esri:WebTiledLayer
+			visible="{baseLayers.selectedLayer == 'NPS'}"     
+			copyright="National Park Service"
+			subDomains="{ABCD}"
+			urlTemplate="{npsUrlTemplate}" />
+			
+		<esri:ArcGISDynamicMapServiceLayer
+			id="emptyHUCs"
+			visible="true"
+			url="{resourceManager.getString('urls', 'HgDataUrl')}" >
+			<esri:visibleLayers>                
+				<mx:ArrayCollection id="emptySourceVis">
+					<fx:Number>5</fx:Number>       
+				</mx:ArrayCollection>            
+			</esri:visibleLayers>
+		</esri:ArcGISDynamicMapServiceLayer>
+		<esri:ArcGISDynamicMapServiceLayer
+			id="npsServices" 
+			updateStart="disablePrint(event)"
+			updateEnd="enablePrint(event)"
+			visible="{npsServicesToggle.selected}"
+			alpha="0.75"
+			url="{resourceManager.getString('urls', 'HgDataUrl')}" >
+			<esri:visibleLayers>                
+				<mx:ArrayCollection id="dataSourceVis">
+					<fx:Number>8</fx:Number>       
+				</mx:ArrayCollection>            
+			</esri:visibleLayers>
+		</esri:ArcGISDynamicMapServiceLayer>
+		<esri:ArcGISDynamicMapServiceLayer
+			id="networksLayer"
+			visible="{networksToggle.selected}"
+			url="{resourceManager.getString('urls', 'HgDataUrl')}" >
+			<esri:visibleLayers>                
+				<mx:ArrayCollection id="networkVis">                  
+					<fx:Number>0</fx:Number>
+					<fx:Number>1</fx:Number>
+				</mx:ArrayCollection>            
+			</esri:visibleLayers>
+		</esri:ArcGISDynamicMapServiceLayer>
+		<esri:WebTiledLayer
+			visible="true" 
+			alpha="1.0"
+			copyright="National Park Service"
+			subDomains="{ABCD}"
+			urlTemplate="{npsParkPolygonsUrlTemplate}" />
+		<esri:ArcGISDynamicMapServiceLayer
+			id="units"
+			visible="{unitsToggle.selected}"
+			url="{resourceManager.getString('urls', 'HgDataUrl')}" >
+			<esri:visibleLayers>                
+				<mx:ArrayCollection id="unitVis">                  
+					<fx:Number>3</fx:Number>     
+				</mx:ArrayCollection>            
+			</esri:visibleLayers>
+		</esri:ArcGISDynamicMapServiceLayer>
+		<esri:WebTiledLayer
+			visible="true"     
+			copyright="National Park Service"
+			subDomains="{ABCD}"
+			urlTemplate="{npsLabelsUrlTemplate}" />
+		<!-- visible="{unitLabelsToggle.selected}" -->
+		<!--<esri:ArcGISDynamicMapServiceLayer 
+			id="unitLabels"
+			visible="{unitsToggle.selected}" 
+			url="{resourceManager.getString('urls', 'HgDataUrl')}" >
+			<esri:visibleLayers>                
+				<mx:ArrayCollection id="unitLabelsVis">                  
+					<fx:Number>18</fx:Number>     
+				</mx:ArrayCollection>            
+			</esri:visibleLayers>
+		</esri:ArcGISDynamicMapServiceLayer>-->
+		<esri:ArcGISDynamicMapServiceLayer
+			id="networkLabels"
+			visible="{networkLabelsToggle.selected}"
+			url="{resourceManager.getString('urls', 'HgDataUrl')}" >
+			<esri:visibleLayers>                
+				<mx:ArrayCollection id="networkLabelsVis">                  
+					<fx:Number>17</fx:Number>     
+				</mx:ArrayCollection>            
+			</esri:visibleLayers>
+		</esri:ArcGISDynamicMapServiceLayer>
+		<esri:GraphicsLayer id="queryGraphicsLayer" />
+		<esri:GraphicsLayer id="infoGraphicsLayer" />
+	</esri:Map>
+	
+	<!-- End Main Map -->
+	
+	<mx:Box id="mapMask" visible="false" backgroundColor="gray" width="100%" height="100%" />
+	
+	<!-- Header --> 
+	
+	<mx:Canvas>
+		<mx:HBox id="header" backgroundAlpha="{genAlpha}" color="white" backgroundColor="black" borderStyle="solid" borderColor="black" cornerRadius="5" top="5" left="5" paddingTop="5" paddingLeft="5">
+			<mx:Image id="headerLogo" source="@Embed(source='./assets/images/header_logo.png')" height="80" width="200" useHandCursor="true" buttonMode="true" mouseChildren="false" toolTip="USGS Links" click="showPopUpBox(event, 'headerFooterLinkBox')" />
+			<mx:HBox backgroundColor="black" backgroundAlpha="0" width="100%" height="74" paddingLeft="10" paddingRight="20" verticalGap="0" verticalAlign="middle" >
+				<s:Label text="{resourceManager.getString('ui.text', 'mainTitle')}" width="320" color="white" paddingTop="10" fontFamily="Arial, Helvetica, sans-serif" fontWeight="bold" fontSize="22"/>
+				<s:Label text="{resourceManager.getString('ui.text', 'subTitle')}" color="0xDDDDDD" fontFamily="Arial, Helvetica, sans-serif" fontSize="18"/>
+			</mx:HBox>
+			<mx:VBox paddingTop="4">
+				<mx:Image id="npsLogo" source="@Embed(source='./assets/images/npsLogo_nobackground.png')" height="72" useHandCursor="true" buttonMode="true" mouseChildren="false" toolTip="NPS" click="navigateToURL(new URLRequest('http://www.nps.gov'))"/>
+			</mx:VBox>
+			<s:VGroup paddingTop="10" paddingRight="10" id="moreInfoIcon">
+				<s:HGroup
+					verticalAlign="top"
+					useHandCursor="true"
+					buttonMode="true"
+					mouseChildren="false"
+					click="showPopUpBox(event, 'NPSLinkBox')"
+					toolTip="more links and info" top="5" right="5">
+					<s:Ellipse height="13" width="13" includeInLayout="false">
+						<s:stroke>
+							<s:SolidColorStroke color="0xDBDBDD" weight="1"/>
+						</s:stroke>
+						<s:fill>
+							<s:SolidColor color="0xDBDBDD" />
+						</s:fill>
+					</s:Ellipse>
+					<mx:Text text="?" paddingLeft="2" paddingTop="-2" color="0x868686" fontWeight="bold" />
+				</s:HGroup>
+			</s:VGroup>
+		</mx:HBox>
+	</mx:Canvas>
+	
+	<!-- End Header --> 
+	
+	
+	<!-- Controls -->
+	
+	<mx:HBox left="10" top="95" horizontalGap="5">
+		<wim:ExtentNavigator targetMap="{map}" targetNavigation="{navToolbar}" mini="true" id="navigation" styleName="controlBoxTrans" />
+		<mx:HBox id="netFindButton" backgroundAlpha="{genAlpha}" color="white" backgroundColor="black" borderColor="black" borderStyle="solid" cornerRadius="5" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" >
+			<mx:Button label="Network/Unit Finder" styleName="button" click="netFindTool()" />
+		</mx:HBox>
+		<mx:HBox id="dataDownloadButton" backgroundAlpha="{genAlpha}" color="white" backgroundColor="black" borderColor="black" borderStyle="solid" cornerRadius="5" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" >
+			<mx:Button label="Download Data" styleName="button" click="dataDownload()" />
+		</mx:HBox>
+		<mx:HBox id="printButton" backgroundAlpha="{genAlpha}" color="white" backgroundColor="black" borderColor="black" borderStyle="solid" cornerRadius="5" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5" >
+			<mx:Button label="Print Map" styleName="button" click="startPrint(event)" />
+		</mx:HBox>
+	</mx:HBox>
+	
+	<wim:CollapsingSearch id="geocoder" searchHint="Enter park code, park name or address..." styleName="controlBoxTrans" top="45" right="5" searchButtonText="Find" searchFunction="{geoCode}" />
+	
+	<!--<wim:BaseMapSelector id="baseLayers" buttonArray="{iconArray}" alpha="{genAlpha}" top="5" right="5" creationComplete="{baseLayers.selectedLayer = 0;}" />-->
+	
+	<!--<wim:FullScreenButton id="fullScreen" alpha="{genAlpha}" top="5" right="5" />-->
+	
+	<mx:Box width="100%" bottom="20" horizontalAlign="center">
+		<wim:CoordsScale map="{map}" alpha="{genAlpha}" />
+	</mx:Box>
+	
+	<!-- End Controls -->
+	
+	<!-- Custom legend/layer toggling -->
+	
+	<!--<mx:VBox id="operLayers" backgroundAlpha="{genAlpha}" verticalScrollPolicy="off" color="white" backgroundColor="0x000000" borderColor="black" borderStyle="solid" cornerRadius="5" paddingBottom="10" paddingLeft="5" paddingRight="5" paddingTop="5" top="85" right="5">
+		<mx:HBox width="100%" >
+			<mx:Label text="Available Layers" fontSize="20" fontWeight="bold"/>
+			<mx:Box width="100%" />
+			<mx:VBox>
+				<mx:HBox width="100%">
+					<mx:Box width="100%"/>
+					<mx:Image id="maxMinImg" height="15" width="17" source="assets/images/minus.png" useHandCursor="true" buttonMode="true" mouseChildren="false" toolTip="minimize" click="maxMin()" />
+				</mx:HBox>
+			</mx:VBox>
+		</mx:HBox>
+		<mx:VBox id="layerList" color="white" verticalScrollPolicy="off" backgroundAlpha="{genAlpha}" backgroundColor="0x000000" height="253" width="265" horizontalScrollPolicy="off" borderStyle="solid" cornerRadius="5" paddingBottom="10" paddingLeft="5" paddingRight="5" paddingTop="5" top="295" right="5">
+			<mx:Text text="National Park Service Inventory and" fontWeight="bold" paddingLeft="10" />
+			<mx:Text text="Monitoring Program" fontWeight="bold" paddingTop="-10" paddingLeft="10" />
+			<mx:HBox paddingLeft="10" paddingRight="10" >
+				<mx:VBox>
+					<mx:HBox paddingLeft="40" >
+						<mx:CheckBox id="npsNetCB" selected="true" change="toggleLayers(event)" />
+						<mx:Text text="Networks" />
+					</mx:HBox>
+					<mx:HBox paddingLeft="40" >
+						<mx:CheckBox id="imParksCB" selected="false" change="toggleLayers(event)" />
+						<mx:Text text="Units" />
+					</mx:HBox>
+					<mx:HBox>
+						<mx:Box height="18" paddingTop="3" >
+							<mx:Button id="dataSourceTransButton" mouseOver="{transLayer='status'; sliderFadeIn(event);}" styleName="InfoExpandButton" height="12" width="12" />
+						</mx:Box>
+						<mx:CheckBox id="hucDataCB" selected="true" change="toggleLayers(event)" />
+						<mx:Text text="Data, summarized by 8-digit hydrologic unit" width="200" />
+					</mx:HBox>
+					<mx:RadioButtonGroup id="hucDataOpt"  change="toggleLayers(event)" enabled="{hucDataCB.selected}" />
+					<mx:HBox paddingLeft="30" >
+						<mx:RadioButton groupName="hucDataOpt" id="predMeHg" value="predMeHg" 
+										width="15" />
+						<mx:VBox verticalGap="0">
+							<mx:Text text="Predicted Methylmercury (ng/L)" fontWeight="bold" />
+						</mx:VBox>
+					</mx:HBox>
+					<mx:HBox paddingLeft="30" >
+						<mx:RadioButton groupName="hucDataOpt" verticalCenter="center" id="wetland" value="wetland"
+										width="15" />
+						<mx:Text text="Wetland" />
+					</mx:HBox>
+					<mx:HBox paddingLeft="30" >
+						<mx:RadioButton groupName="hucDataOpt" id="pH" value="pH" 
+										width="15" />
+						<mx:Text text="pH " />
+					</mx:HBox>
+					<mx:HBox paddingLeft="30" >
+						<mx:RadioButton groupName="hucDataOpt" id="sulfate" value="sulfate"
+										width="15" />
+						<mx:Text text="Sulfate (mg/L)" />
+					</mx:HBox>
+					<mx:HBox paddingLeft="30" >
+						<mx:RadioButton groupName="hucDataOpt" id="carbon" value="carbon"
+										width="15" />
+						<mx:VBox verticalGap="0">
+							<mx:Text text="Total Organic Carbon (mg/L)" />
+						</mx:VBox>
+					</mx:HBox>
+				</mx:VBox>
+			</mx:HBox>
+		</mx:VBox>
+		
+		<mx:VBox id="layerExps" color="white" backgroundAlpha="{genAlpha}" backgroundColor="0x000000" height="150" width="265" horizontalScrollPolicy="off" borderStyle="solid" cornerRadius="5" 
+				 paddingBottom="10" paddingLeft="5" paddingRight="5" paddingTop="5" top="325" right="5"
+				 >
+			<mx:VBox verticalGap="0" scaleX=".73" scaleY=".73">
+				<wim:ShrinkingImage id="netExp" source="./assets/images/network_legend.gif" visible="{npsNetCB.selected}" />
+				<wim:ShrinkingImage id="unitExp" source="./assets/images/unit_legend.gif" visible="{imParksCB.selected}" />
+				<wim:ShrinkingImage id="pmehgExp" source="./assets/images/predmehg_legend.gif" visible="{(hucDataOpt.selectedValue == 'predMeHg') &amp;&amp; hucDataCB.selected}" 
+									creationComplete="hucDataOpt.selectedValue='predMeHg'" />
+				<wim:ShrinkingImage id="wetExp" source="./assets/images/wetland_legend.gif" visible="{(hucDataOpt.selectedValue == 'wetland') &amp;&amp; hucDataCB.selected}"  />
+				<wim:ShrinkingImage id="phExp" source="./assets/images/ph_legend.gif" visible="{(hucDataOpt.selectedValue == 'pH') &amp;&amp; hucDataCB.selected}" />
+				<wim:ShrinkingImage id="sulfExp" source="./assets/images/sulfate_legend.gif" visible="{(hucDataOpt.selectedValue == 'sulfate') &amp;&amp; hucDataCB.selected}" />
+				<wim:ShrinkingImage id="carbExp" source="./assets/images/carbon_legend.gif" visible="{(hucDataOpt.selectedValue == 'carbon') &amp;&amp; hucDataCB.selected}" />
+			</mx:VBox>
+		</mx:VBox>
+	</mx:VBox>-->
+	
+	<!-- Custom legend/layer toggling -->
+	
+	<wim:CollapsingBox id="controlLayers" 
+							   top="85" 
+							   right="5"	
+							   boxTitle="Available Layers"
+							   startCollapsed="false">
+		<wim:contentGroup>
+			<s:VGroup id="layersVGroup">
+				<s:Group width="100%" bottom="10">
+					<s:Rect width="100%" height="100%">
+						<s:fill><s:SolidColor color="black" /></s:fill>
+					</s:Rect>
+					<s:VGroup paddingTop="5" paddingLeft="5" paddingBottom="10">
+						<s:VGroup id="layerToggles" paddingTop="5" paddingLeft="10">
+							
+							<wim:LayerToggle id="npsServicesToggle" adjustOpacity="true" serviceLayerID="npsServices" layerTitle="Data, summarized by 8-digit hydrologic unit" layerTitleWidth="200" selected="{npsServices.visible}" />
+							<s:VGroup paddingLeft="40">
+								<s:RadioButton group="{dataSourceOpt}"
+											   id="ph"
+											   label="pH" 
+											   click="{updateNPSServices(10)}"
+											   value="ph" />
+								<s:HGroup gap="0">
+									<s:RadioButton group="{dataSourceOpt}"
+											   id="med_sulf"
+											   click="{updateNPSServices(12)}"
+											   value="med_sulf" />
+									<s:RichText textAlign="left" verticalAlign="middle" height="100%">
+										<s:span>Sulfate (mg/L as SO</s:span>
+										<s:span baselineShift="subscript">4</s:span>
+										<s:span>)</s:span>
+									</s:RichText>
+								</s:HGroup>
+								<s:RadioButton group="{dataSourceOpt}"
+											   id="med_toc"
+											   label="Total Organic Carbon (mg/L)" 
+											   click="{updateNPSServices(14)}"
+											   value="med_toc" />
+								<s:RadioButton group="{dataSourceOpt}"
+											   id="wetland" 
+											   label="Wetland (%)" 
+											   click="{updateNPSServices(16)}"
+											   value="wetland" />
+								<s:RadioButton group="{dataSourceOpt}"
+											   id="predMehg"
+											   selected="true"
+											   label="Predicted Methylmercury (ng/L)" 
+											   click="{updateNPSServices(8)}"
+											   value="predmehg"/>
+							</s:VGroup>
+							<s:HGroup>
+								<wim:LayerToggle id="networksToggle" adjustOpacity="false" serviceLayerID="networksLayer" layerTitle="NPS I&amp;M networks" selected="{networksLayer.visible}" />
+								<s:HGroup paddingLeft="-20">
+									<wim:LayerToggle id="networkLabelsToggle" adjustOpacity="false" serviceLayerID="networkLabels" layerTitle="labels" enabled="{networksLayer.visible}" selected="{networkLabels.visible &amp;&amp; networksLayer.visible}" />
+								</s:HGroup>
+								<s:HGroup
+									verticalAlign="middle"
+									useHandCursor="true"
+									buttonMode="true"
+									mouseChildren="false"
+									click="navigateToURL(new URLRequest('http://science.nature.nps.gov/im/networks.cfm'))" 
+									toolTip="National park units with significant natural resources are grouped into 32 networks as part of the NPS Inventory and Monitoring (I&amp;M) Program.  The networks are based on geography and shared natural resource characteristics and facilitate collaboration among parks in natural resource inventory and monitoring." >
+									<s:Ellipse height="13" width="13" includeInLayout="false">
+										<s:stroke>
+											<s:SolidColorStroke color="0xDBDBDD" weight="1"/>
+										</s:stroke>
+										<s:fill>
+											<s:SolidColor color="0xDBDBDD" />
+										</s:fill>
+									</s:Ellipse>
+									<mx:Text text="?" paddingLeft="2" paddingTop="-2" color="0x868686" fontWeight="bold" />
+								</s:HGroup>
+							</s:HGroup>
+							<s:HGroup>
+								<wim:LayerToggle id="unitsToggle" adjustOpacity="false" serviceLayerID="units" layerTitle="NPS I&amp;M park units" selected="{units.visible}" />
+								<!--<s:HGroup paddingLeft="-20">
+									<wim:LayerToggle id="unitLabelsToggle" adjustOpacity="false" serviceLayerID="unitLabels" layerTitle="labels" enabled="{units.visible}" selected="{unitLabels.visible &amp;&amp; units.visible}" />
+								</s:HGroup>-->
+								<s:HGroup
+									verticalAlign="middle"
+									useHandCursor="true"
+									buttonMode="true"
+									mouseChildren="false"
+									click="navigateToURL(new URLRequest('http://science.nature.nps.gov/im/networks.cfm'))" 
+									toolTip="National park units include national parks, national preserves, national monuments, national memorials, national historic sites, national seashores, and national battlefield parks." >
+									<s:Ellipse height="13" width="13" includeInLayout="false">
+										<s:stroke>
+											<s:SolidColorStroke color="0xDBDBDD" weight="1"/>
+										</s:stroke>
+										<s:fill>
+											<s:SolidColor color="0xDBDBDD" />
+										</s:fill>
+									</s:Ellipse>
+									<mx:Text text="?" paddingLeft="2" paddingTop="-2" color="0x868686" fontWeight="bold" />
+								</s:HGroup>
+							</s:HGroup>
+						</s:VGroup>
+					</s:VGroup>	
+				</s:Group>
+				<s:VGroup>
+					<mx:Box id="legendContainer" backgroundColor="black" width="100%" maxHeight="{FlexGlobals.topLevelApplication.height-layerToggles.height-200}" verticalScrollPolicy="{(legendContainer.height == legendContainer.maxHeight) ? 'on' : 'off'}" >
+						<s:VGroup id="legendGroup" paddingTop="5" paddingLeft="5" paddingRight="5" paddingBottom="5" gap="0">
+							<!--<s:BorderContainer id="networkLegend" visible="{networksLayer.visible}" includeInLayout="{networksLayer.visible}" backgroundColor="#f4f1dd" borderVisible="false" color="black" width="310" height="50">
+								<s:layout>
+									<s:VerticalLayout gap="0" paddingTop="10" paddingLeft="10" paddingRight="10" />
+								</s:layout>
+							</s:BorderContainer>
+							<s:BorderContainer id="unitLegend" visible="{units.visible}" includeInLayout="{units.visible}" backgroundColor="#f4f1dd" borderVisible="false" color="black" width="310" height="50">
+								<s:layout>
+									<s:VerticalLayout gap="0" paddingTop="10" paddingLeft="10" paddingRight="10" />
+								</s:layout>
+							</s:BorderContainer>
+							<s:BorderContainer id="siteLegend" visible="{npsServices.visible}" includeInLayout="{npsServices.visible}" backgroundColor="#f4f1dd" borderVisible="false" color="black" width="310">
+								<s:layout>
+									<s:VerticalLayout gap="0" paddingLeft="10" paddingRight="10" />
+								</s:layout>
+							</s:BorderContainer>-->
+							<controls:MapServiceLegend id="npsServicesLegend" map="{map}" needsUpdates="true" serviceLayer="{npsServices}" legendWidth="260" />
+							<controls:MapServiceLegend id="networkLegend" map="{map}" needsUpdates="false" serviceLayer="{networksLayer}" legendWidth="260" />
+							<controls:MapServiceLegend id="unitLegend" map="{map}" needsUpdates="false" serviceLayer="{units}" legendWidth="260" />
+						</s:VGroup>
+					</mx:Box>
+				</s:VGroup>
+				<!--<mx:Box id="legendContainer" backgroundColor="black" width="100%" maxHeight="{FlexGlobals.topLevelApplication.height-layerToggles.height-240}" verticalScrollPolicy="{(legendContainer.height == legendContainer.maxHeight) ? 'on' : 'off'}" >
+					<mx:VBox verticalGap="0" paddingTop="5" paddingLeft="5" paddingRight="5" paddingBottom="5">
+						<wim:ShrinkingImage id="networksExp" source="@Embed(source='./assets/images/network_legend.gif')" visible="{networksToggle.selected}" />
+						<wim:ShrinkingImage id="unitsExp" source="@Embed(source='./assets/images/unit_legend.gif')" visible="{unitsToggle.selected}" />
+						<wim:ShrinkingImage id="predmehgExp" source="@Embed(source='./assets/images/predmehg_legend.gif')" visible="{npsServicesToggle.selected &amp;&amp; (dataSourceOpt.selectedValue == 'predmehg')}" />
+						<wim:ShrinkingImage id="phLegExp" source="@Embed(source='./assets/images/ph_legend.gif')" visible="{npsServicesToggle.selected &amp;&amp; (dataSourceOpt.selectedValue == 'ph')}" />
+						<wim:ShrinkingImage id="sulfateExp" source="@Embed(source='./assets/images/sulfate_legend.gif')" visible="{npsServicesToggle.selected &amp;&amp; (dataSourceOpt.selectedValue == 'med_sulf')}" />
+						<wim:ShrinkingImage id="tocExp" source="@Embed(source='./assets/images/carbon_legend.gif')" visible="{npsServicesToggle.selected &amp;&amp; (dataSourceOpt.selectedValue == 'med_toc')}" />
+						<wim:ShrinkingImage id="wetlandExp" source="@Embed(source='./assets/images/wetland_legend.gif')" visible="{npsServicesToggle.selected &amp;&amp; (dataSourceOpt.selectedValue == 'wetland')}" />
+					</mx:VBox>
+				</mx:Box>-->
+			</s:VGroup>
+		</wim:contentGroup>
+	</wim:CollapsingBox>
+	<!-- End Custom legend/layer toggling -->
+	
+	<!-- Custom basemap gallery -->
+	<controls:BaseMapGallery id="baseLayers" top="5" right="5" creationComplete="{baseLayers.selectedLayer = 'NPS';}" />
+	
+	<s:HGroup bottom="25" right="5">
+		<s:Label text="© OpenStreetMap contributors" color="0x555555" visible="{(baseLayers.selectedLayer == 'NPS') ? true : false }" includeInLayout="{(baseLayers.selectedLayer == 'NPS') ? true : false }" useHandCursor="true" buttonMode="true" mouseChildren="false" click="navigateToURL(new URLRequest('http://www.openstreetmap.org/copyright'))" />
+		<!--<s:Label text=" || " visible="{(baseLayers.selectedLayer == 'NPS') ? true : false }" includeInLayout="{(baseLayers.selectedLayer == 'NPS') ? true : false }" />
+		<s:Label text="NPMap" useHandCursor="true" buttonMode="true" mouseChildren="false" click="navigateToURL(new URLRequest('http://www.nps.gov/npmap'))" />-->
+	</s:HGroup>
+	
+	
+	<!-- Print Input From -->
+	<mx:Box id="printFormBox" visible="false" alpha="0" top="5" right="5" backgroundColor="0x000000" borderStyle="solid" cornerRadius="5" paddingBottom="5" paddingLeft="5" paddingRight="5" paddingTop="5">
+		<mx:Grid width="100%">
+			<mx:GridRow width="100%">
+				<mx:GridItem width="100%" horizontalAlign="right">
+					<mx:Label text="Cancel" textDecoration="underline" color="#8484E2" buttonMode="true" useHandCursor="true" mouseChildren="false" click="closePrintForm()"/>
+				</mx:GridItem>
+			</mx:GridRow>
+		</mx:Grid>
+		<mx:Form id="printForm" backgroundColor="Gray" borderThickness="1" borderColor="0xFFFFFF" cornerRadius="5" borderStyle="solid" >
+			<mx:FormHeading label="Print Options" />
+			<mx:FormItem label="Title:">
+				<mx:TextInput id="printTitle" />
+				<mx:Text id="titleValText" visible="false" includeInLayout="false" text=" * Maximum of 40 characters" color="maroon" fontWeight="bold" />
+			</mx:FormItem>
+			<mx:FormItem label="Remarks:">
+				<mx:TextArea id="printNotes"/>
+				<mx:Text id="remarksValText" visible="false" includeInLayout="false" text="* Maximum of 125 characters" color="maroon" fontWeight="bold" />
+			</mx:FormItem>
+			<mx:FormItem>
+				<mx:Button id="printSubmit" label="Submit" click="map.zoomSliderVisible = false; printPDF(printTitle.text,printNotes.text)" />
+			</mx:FormItem>
+		</mx:Form>
+		<mx:VBox id="printCheck" visible="false" color="white" width="100%">
+			<mx:HBox>
+				<mx:CheckBox id="printWithChartCheck" selected="false" />
+				<mx:Text text="print with chart data" fontWeight="bold" />
+			</mx:HBox>
+		</mx:VBox>
+	</mx:Box>
+	<!-- End of print form -->
+	
+	<!--<mx:HBox alpha="0.85" right="15" bottom="15" borderColor="black" borderThickness="0" borderStyle="solid" >
+		<mx:Box right="15" bottom="15" scaleX="0.5" scaleY="0.5" borderColor="black" borderThickness="0" borderStyle="solid" >
+			<mx:Image id="wimLogo" source="./assets/images/WiM_logo_sm.gif" useHandCursor="true" buttonMode="true" mouseChildren="false" toolTip="Wisconsin Internet Mapping Group" click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/wim/index.html'))" />
+		</mx:Box>
+		<mx:Image id="cidaLogo" source="./assets/images/cida_logo_4c-300_notext40px.jpg" useHandCursor="true" buttonMode="true" mouseChildren="false" toolTip="Center for Integrated Data Analytics" click="navigateToURL(new URLRequest('http://cida.usgs.gov'))" />
+	</mx:HBox>-->
+	
+	<mx:Image id="netExp" source="./assets/images/network_legend.gif" visible="false" />
+	<mx:Image id="unitExp" source="./assets/images/unit_legend.gif" visible="false" />
+	<mx:Image id="pmehgExp" source="./assets/images/predmehg_legend.gif" visible="false" />
+	<mx:Image id="wetExp" source="./assets/images/wetland_legend.gif" visible="false" />
+	<mx:Image id="phExp" source="./assets/images/ph_legend.gif" visible="false" />
+	<mx:Image id="sulfExp" source="./assets/images/sulfate_legend.gif" visible="false" />
+	<mx:Image id="carbExp" source="./assets/images/carbon_legend.gif" visible="false" />
+	
+	<!--<mx:Panel title="Multiple Data Series" width="400" height="400">
+	
+	</mx:Panel>-->
+	
+	<wim:WimDisclaimer id="mainDisclaimer" map="{map}" disclaimerHtmlText="{disclaimerHtml}" />
+	
+</mx:Application>

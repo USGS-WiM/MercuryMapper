@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ItemRenderer xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				xmlns:s="library://ns.adobe.com/flex/spark" 
+				xmlns:mx="library://ns.adobe.com/flex/mx" 
+				autoDrawBackground="true" mouseEnabled="false" mouseFocusEnabled="false" >
+	
+	<mx:HBox left="-30" top="5" width="5" height="2" backgroundColor="black"/>
+	<mx:HBox left="-25" top="5" width="5" height="2" backgroundAlpha="0"/>
+	<mx:HBox left="-20" top="5" width="5" height="2" backgroundColor="black"/>
+	<mx:HBox left="-15" top="5" width="5" height="2" backgroundAlpha="0"/>
+	<mx:HBox left="-10" top="5" width="5" height="2" backgroundColor="black"/>
+	<mx:HBox left="-5" top="5" width="5" height="2" backgroundAlpha="0"/>
+	<mx:HBox left="0" top="5" width="5" height="2" backgroundColor="black"/>
+	<mx:HBox left="5" top="5" width="5" height="2" backgroundAlpha="0"/>
+	<mx:HBox left="10" top="5" width="5" height="2" backgroundColor="black"/>
+	<mx:HBox left="15" top="5" width="5" height="2" backgroundAlpha="0"/>
+	<mx:HBox left="20" top="5" width="5" height="2" backgroundColor="black"/>
+	<mx:HBox left="25" top="5" width="5" height="2" backgroundAlpha="0"/>
+	<mx:HBox left="30" top="5" width="5" height="2" backgroundColor="black"/>
+	
+</s:ItemRenderer>

@@ -1,0 +1,194 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 01.24.12 - NE - Changed contact link. -->
+<!-- 03.01.11 - NE - Initial creation of DataDownloadWindow. -->
+<wim:WiMInfoWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 xmlns:esri="http://www.esri.com/2008/ags"
+		 xmlns:wim="gov.usgs.wim.controls.*"
+		 creationComplete="componentLoad()"
+		 title="  Data Download" xmlns:local="*" xmlns:controls="controls.*">
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			
+			protected function componentLoad():void
+			{
+				maximizeButton.visible = false;
+				maximizeButton.includeInLayout = false;
+				minimizeButton.right = 24;
+			}
+			
+			protected function downloadTable_clickHandler(event:MouseEvent):void
+			{
+				Alert.show('This mapper contains provisional data that is not yet available for download. Contact hgmapper@usgs.gov for more information.')
+				//navigateToURL(new URLRequest(''))
+			}
+			
+		]]>
+	</fx:Script>
+	<mx:VBox id="dataDownloadTab" label="Data" paddingBottom="10" paddingLeft="30" paddingRight="30" paddingTop="30" height="100%" width="100%" horizontalAlign="center" verticalAlign="middle">
+		<mx:VBox height="100%" width="100%" verticalAlign="middle">
+			<s:Label text="Download Data for All Hydrologic Units (HUCs)" fontSize="12" textAlign="left" fontWeight="bold" color="black" paddingTop="30" paddingBottom="5"/>
+			<mx:VBox fontWeight="bold" height="50%" width="90%" verticalGap="0" paddingTop="10">
+				<mx:HBox width="100%" fontWeight="bold" fontSize="12" paddingBottom="5" borderColor="Black" color="white" paddingTop="5" borderStyle="solid" backgroundColor="0x82955d" height="25" horizontalAlign="center" verticalAlign="middle">
+					<s:Label text="" width="20%" height="100%" paddingLeft="5"/>
+					<s:Label text="FILE FORMAT" width="30%" height="100%" paddingLeft="5"/>
+					<s:Label text="FILE SIZE" width="15%" height="100%" paddingLeft="5"/>
+					<s:Label text="DESCRIPTION" width="35%" height="100%" paddingLeft="5"/>
+				</mx:HBox>
+				<mx:HBox width="100%" borderStyle="solid" horizontalAlign="center" verticalAlign="middle">
+					<s:HGroup width="20%" paddingLeft="10">
+						<controls:WrapButton id="downloadTable" cornerRadius="5" label="Download Table" chromeColor="0x90C050" click="downloadTable_clickHandler(event)" width="100" height="50" color="black" fontWeight="bold" right="10" bottom="5"/>
+						<!--<s:Label text="Table" useHandCursor="true" 
+						buttonMode="true" 
+						mouseChildren="false" 
+						click="navigateToURL(new URLRequest(''))" color="0x848BED" paddingLeft="5"/>-->
+					</s:HGroup>
+					<s:Label text="Comma-delimited text" fontWeight="normal" width="30%" paddingLeft="5"/>
+					<s:Label text="23KB" fontWeight="normal" width="15%" paddingLeft="5"/>
+					<mx:VBox width="35%" verticalGap="-4">
+						<mx:Text width="100%" fontWeight="normal" text="Tabular data saved as a comma-"/>
+						<mx:Text width="100%" fontWeight="normal" text="delimited text file. It contains"/>
+						<mx:HBox horizontalGap="0" width="100%">
+							<mx:Text fontWeight="normal" text="pH" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="pH value represents the median value of pH measurements reported by the USGS and (or) the NPS for each HUC, and is reported in standard units."/>
+							<mx:Text fontWeight="normal" text=","/>
+							<mx:Text fontWeight="normal" text="sulfate" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Sulfate concentration represents the median concentration of sulfate samples reported by the USGS and (or) the NPS for each HUC, and is reported in milligrams per liter."/>
+							<mx:Text fontWeight="normal" text=","/>
+							<mx:Text fontWeight="normal" text="total organic carbon" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Total organic carbon concentration represents the median concentration from samples reported by the USGS and (or) the NPS for each HUC, and is reported in milligrams per liter."/>
+							<mx:Text fontWeight="normal" text=", "/>
+						</mx:HBox>
+						<mx:HBox horizontalGap="0" width="100%">
+							<mx:Text fontWeight="normal" text="wetland" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Wetland value represents the areal percent of this HUC occupied by wetland land cover."/>
+							<mx:Text fontWeight="normal" text=", and"/>
+							<mx:Text fontWeight="normal" text="predicted methylmercury" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Predicted methylmercury concentration is generated by the model for each HUC, and is reported in nanograms per liter."/>
+						</mx:HBox>
+						<mx:HBox horizontalGap="0" width="100%">
+							<mx:Text fontWeight="normal" text="data. Associated metadata is"/>
+						</mx:HBox>
+						<mx:Text fontWeight="normal" text="included in download."/>
+					</mx:VBox>
+				</mx:HBox>
+				<mx:HBox width="100%" borderStyle="solid" horizontalAlign="center" verticalAlign="middle">
+					<s:HGroup width="20%" paddingLeft="10">
+						<controls:WrapButton id="downloadSpatial" cornerRadius="5" label="Download Spatial Data" chromeColor="0x90C050" click="Alert.show('This mapper contains provisional data that is not yet available for download. Contact hgmapper@usgs.gov for more information.')" width="100" height="50" color="black" fontWeight="bold" right="10" bottom="5"/>
+						<!--<s:Label text="Spatial (GIS)" useHandCursor="true" 
+						buttonMode="true" 
+						mouseChildren="false" 
+						click="navigateToURL(new URLRequest('http://wim.usgs.gov/MercuryMapper/downloads/nps_hgsensitivity_shp.zip'))" color="0x848BED" paddingLeft="5"/>-->
+					</s:HGroup>
+					<s:Label text="Shapefile" fontWeight="normal" width="30%" paddingLeft="5"/>
+					<s:Label text="4.27MB" fontWeight="normal" width="15%" paddingLeft="5"/>
+					<mx:VBox width="35%" verticalGap="-4">
+						<mx:Text fontWeight="normal" width="100%" text="The USGS 1:2M HUC"/>
+						<mx:Text fontWeight="normal" width="100%" text="layer* attributed with"/>
+						<mx:HBox horizontalGap="0" width="100%">
+							<mx:Text fontWeight="normal" text="pH" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="pH value represents the median value of pH measurements reported by the USGS and (or) the NPS for each HUC, and is reported in standard units."/>
+							<mx:Text fontWeight="normal" text=","/>
+							<mx:Text fontWeight="normal" text="sulfate" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Sulfate concentration represents the median concentration of sulfate samples reported by the USGS and (or) the NPS for each HUC, and is reported in milligrams per liter."/>
+							<mx:Text fontWeight="normal" text=","/>
+							<mx:Text fontWeight="normal" text="total organic carbon" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Total organic carbon concentration represents the median concentration from samples reported by the USGS and (or) the NPS for each HUC, and is reported in milligrams per liter."/>
+							<mx:Text fontWeight="normal" text=", "/>
+						</mx:HBox>
+						<mx:HBox horizontalGap="0" width="100%">
+							<mx:Text fontWeight="normal" text="wetland" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Wetland value represents the areal percent of this HUC occupied by wetland land cover."/>
+							<mx:Text fontWeight="normal" text=", and"/>
+							<mx:Text fontWeight="normal" text="predicted methylmercury" color="black" paddingRight="-2"
+									 textDecoration="underline"
+									 useHandCursor="true" 
+									 buttonMode="true" 
+									 mouseChildren="false" 
+									 click="navigateToURL(new URLRequest('http://wi.water.usgs.gov/mercury/HgWMAmethods.html'))"
+									 toolTip="Predicted methylmercury concentration is generated by the model for each HUC, and is reported in nanograms per liter."/>
+						</mx:HBox>
+						<mx:Text fontWeight="normal" text="data. Associated metadata is"/>
+						<mx:Text fontWeight="normal" text="included in download."/>
+					</mx:VBox>
+				</mx:HBox>
+				<mx:HBox paddingTop="10" horizontalGap="3" fontWeight="normal">
+					<s:Label text="* Layer has been modified slightly from its"/>
+					<mx:HBox horizontalGap="0">
+						<s:Label text="original form" useHandCursor="true" textDecoration="underline" 
+								 buttonMode="true" 
+								 mouseChildren="false" 
+								 click="navigateToURL(new URLRequest('http://www.nationalatlas.gov/metadata/hucs00m020.html'))" width="20%" color="black" />
+						<s:Label text=". See associated metadata for details regarding changes."/>
+					</mx:HBox>
+				</mx:HBox>
+			</mx:VBox>
+			<!--<mx:HBox height="30%" width="90%" horizontalAlign="right" horizontalGap="0" fontWeight="normal" paddingTop="20" paddingBottom="20" paddingRight="20">
+				<s:Label fontSize="10" fontWeight="normal" text="Contact"/>
+				<s:Label fontSize="10" fontWeight="normal" text=" " />
+				<s:Label fontSize="10" fontWeight="normal" color="black" text="hgmapper@usgs.gov" textDecoration="underline" 
+						 useHandCursor="true" 
+						 buttonMode="true" 
+						 mouseChildren="false" 
+						 click="navigateToURL(new URLRequest('mailto:hgmapper@usgs.gov'))" />
+				<s:Label fontSize="10" fontWeight="normal" text=" for more information"/>
+			</mx:HBox>-->
+			<s:HGroup width="100%" horizontalAlign="right" paddingTop="10">
+				<s:Label text="Contact " />
+				<s:Label textDecoration="underline" text="hgmapper@usgs.gov" useHandCursor="true" mouseChildren="false" buttonMode="true" click="navigateToURL(new URLRequest('mailto:hgmapper@usgs.gov'))" />
+				<s:Label text="for more information" />
+			</s:HGroup>
+		</mx:VBox>
+	</mx:VBox>
+</wim:WiMInfoWindow>

@@ -1,0 +1,156 @@
+/* CSS file */
+/* 04.28.10 - NE - Changed styles for CheckBoxes and RadioButtons */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace wim "gov.usgs.wim.controls.*";
+
+.mapStyle
+{
+    navigation-style-name: navStyle;
+}
+
+.navStyle
+{
+    top: 165;
+    left: 10;
+    navigation-slider-style-name: navSlider;
+}
+
+.Pop
+{
+	textRollOverColor: "0x000000";
+	backgroundColor: "0x000000";
+}
+
+#navigation 
+{
+	top: 95;
+	left: 10;
+}
+
+.infoStyle
+{
+	backgroundColor: "0x000000";
+	color: White;
+	padding-top: 5px;
+	padding-left: 5px;
+	padding-right: 5px;
+	padding-bottom: 5px;
+}
+
+.wetInfo
+{
+	backgroundColor: "0x000000";
+	padding-left: 5px;
+	padding-right: 5px;
+	padding-bottom: 5px;
+}
+
+.infoBox
+{
+	padding-top: 5px;
+}
+
+mx|CheckBox, mx|RadioButton
+{
+	iconColor: "0xFFFFFF";
+	borderColor: "0xFFFFFF";
+	fillColors: #444444, #444444;
+}
+
+.poiContain
+{
+	backgroundColor: "0xBBBBBB";
+	color: "0x000000";
+	borderStyle: solid;
+	cornerRadius: 5;
+	padding-top: 5px;
+	padding-left: 5px;
+	padding-right: 5px;
+	padding-bottom: 5px;
+}
+
+.noline
+{
+	text-decoration: none;
+}
+
+.line
+{
+	text-decoration: underline;
+	color: blue;
+}
+
+mx|Alert
+{
+	font-size: 14px;
+	font-weight: bold;
+}
+
+.controlBox {
+	color: White;
+	background-color:"0x000000";
+	border-color: Black;
+	border-style: Solid;
+	corner-radius: 5px;
+	padding-top: 5px;
+	padding-left: 5px;
+	padding-right: 5px;
+	padding-bottom: 5px; 
+}
+
+.controlBoxTrans {
+	color: White;
+	background-color:"0x000000";
+	background-alpha:0.75;
+	border-color: Black;
+	border-style: Solid;
+	corner-radius: 5px;
+	padding-top: 5px;
+	padding-left: 5px;
+	padding-right: 5px;
+	padding-bottom: 5px; 
+}
+
+.controlBoxTrans mx|Button {
+	background-alpha:1;	
+}
+
+.controlBoxTrans mx|TextInput {
+	background-alpha:1;
+}
+
+.InfoCloseButton {                        
+   	disabledSkin: Embed(source="./assets/skins.swf", symbol="Callout_closeButtonDisabledSkin");                        
+   	downSkin: Embed(source="./assets/skins.swf", symbol="Callout_closeButtonDownSkin");                        
+   	overSkin: Embed(source="./assets/skins.swf", symbol="Callout_closeButtonOverSkin");                        
+   	upSkin: Embed(source="./assets/skins.swf", symbol="Callout_closeButtonUpSkin");        
+}   
+
+.InfoExpandButton {                
+	disabledSkin: Embed(source="./assets/skins.swf", symbol="Callout_expandButtonDisabledSkin");                            
+	downSkin: Embed(source="./assets/skins.swf", symbol="Callout_expandButtonDownSkin");                            
+	overSkin: Embed(source="./src/assets/skins.swf", symbol="Callout_expandButtonOverSkin");                            
+	upSkin: Embed(source="./assets/skins.swf", symbol="Callout_expandButtonUpSkin");                         
+}
+
+
+.navSlider
+{
+	dataTipPlacement: "top";
+    /*showScaleInDataTip: true;
+    tickColor: #FFFFFF;
+    tickLength: 10;
+    tickOffset: 13;
+    tickThickness: 3;
+    borderColor: #FFFFFF;
+    themeColor: haloSilver;
+    invertThumbDirection:true;
+    showTrackHighlight:true;*/
+}
+
+.wrapButton 
+{
+	color: red;
+	backgroundColor: #f5a230;
+}

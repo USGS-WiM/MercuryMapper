@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 08.19.11 - NE - Bug fix for network dropdown list. -->
+<!-- 08.19.11 - NE - Added ability to zoom when only network selected. -->
+<!-- 08.03.11 - NE - Addition of Go button in place of auto zoom to unit. -->
+<!-- 08.03.11 - NE - Initial creation of NetworkUnitFinder. -->
+<wim:WiMInfoWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+				   xmlns:s="library://ns.adobe.com/flex/spark" 
+				   xmlns:mx="library://ns.adobe.com/flex/mx"
+				   xmlns:esri="http://www.esri.com/2008/ags"
+				   xmlns:wim="gov.usgs.wim.controls.*"
+				   creationComplete="componentLoad()"
+				   title="  Network/Unit Finder">
+	<fx:Declarations>
+		<esri:QueryTask id="networkTask" showBusyCursor="true"
+						url="{resourceManager.getString('urls', 'HgDataUrl')}/2" />
+		<esri:Query id="networkQuery" returnGeometry="false">
+			<esri:outFields>
+				<fx:String>FID</fx:String>
+				<fx:String>NETWORK_NA</fx:String>
+				<fx:String>NETWORK_CO</fx:String>
+			</esri:outFields>
+		</esri:Query>
+		<esri:Query id="networkZoom" returnGeometry="true" />
+		
+		<esri:QueryTask id="unitTask" showBusyCursor="true"
+						url="{resourceManager.getString('urls', 'HgDataUrl')}/3" />
+		<esri:Query id="unitQuery" returnGeometry="false">
+			<esri:outFields>
+				<fx:String>FID</fx:String>
+				<fx:String>UNIT_NAME</fx:String>
+			</esri:outFields>
+		</esri:Query>
+		<esri:Query id="unitZoom" returnGeometry="true" />
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.esri.ags.FeatureSet;
+			import com.esri.ags.Graphic;
+			import com.esri.ags.geometry.Extent;
+			import com.esri.ags.geometry.Polygon;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.Sort;
+			import mx.collections.SortField;
+			import mx.controls.Alert;
+			import mx.core.FlexGlobals;
+			import mx.events.CloseEvent;
+			import mx.rpc.AsyncResponder;
+			
+			[Bindable]
+			private var networks:ArrayCollection = new ArrayCollection();
+			
+			[Bindable]
+			private var unitResults:ArrayCollection = new ArrayCollection();
+			
+			private var tempObj:Object = {};
+			
+			protected function componentLoad():void
+			{
+				maximizeButton.visible = false;
+				maximizeButton.includeInLayout = false;
+				minimizeButton.right = 24;
+				
+				//HUC Data layer to hide by default
+				networkQuery.where = "FID >= 0";
+				networkTask.execute(networkQuery, new AsyncResponder(networkResult, queryFault));
+				
+				function networkResult(featureSet:FeatureSet, token:Object = null):void 
+				{
+					var networkAttr:Object = networkTask.executeLastResult.attributes;
+					var i:int;
+					for (i = 0; i < networkAttr.length; i++) {
+						networks.addItem({label: networkAttr[i].NETWORK_NA, data: networkAttr[i].NETWORK_CO, fid: networkAttr[i].FID});
+					}
+					var netSortField:SortField = new SortField();
+					netSortField.name = "label";
+					var networkSort:Sort = new Sort();
+					networkSort.fields = [netSortField];
+					
+					networks.sort = networkSort;
+					networks.refresh();
+					
+				}
+				
+				unitQuery.where = "FID >= 0";
+				unitTask.execute(unitQuery, new AsyncResponder(firstUnitResult, queryFault));
+				
+				function firstUnitResult(featureSet:FeatureSet, token:Object = null):void 
+				{
+					var unitAttr:Object = unitTask.executeLastResult.attributes;
+					var i:int;
+					for (i = 0; i < unitAttr.length; i++) {
+						unitResults.addItem({label:unitAttr[i].UNIT_NAME});
+					}
+					var unitSortField:SortField = new SortField();
+					unitSortField.name = "label";
+					var unitSort:Sort = new Sort();
+					unitSort.fields = [unitSortField];
+					unitResults.sort = unitSort;
+					unitResults.filterFunction = deDupe;
+					
+					unitResults.refresh();
+				}
+			}
+			
+			private function chooseEvent(event:Event):void {
+				if (unitCombo.selectedIndex == -1) {
+					networkQuery.where = "FID = " + networkCombo.selectedItem.fid;
+					networkQuery.returnGeometry = true;
+					networkTask.execute(networkQuery, new AsyncResponder(zoomResult, queryFault));
+				} else {
+					unitChoose(event);
+				}
+			}
+			
+			private function networkChoose(event:Event):void 
+			{
+				if (networkCombo.selectedIndex == -1) { 
+					unitQuery.where = "FID >= 0";
+					unitTask.execute(unitQuery, new AsyncResponder(unitResult, queryFault));
+				} else {
+					unitQuery.where = "CODE = '" + networkCombo.selectedItem.data + "'";
+					unitTask.execute(unitQuery, new AsyncResponder(unitResult, queryFault));
+				}
+			}
+			
+			private function unitChoose(event:Event):void
+			{
+				if (unitCombo.selectedItem != null) {
+					unitZoom.where = "UNIT_NAME = '" + unitCombo.selectedItem.label + "'";
+					unitTask.execute(unitZoom, new AsyncResponder(zoomResult, queryFault));
+				}
+			}
+			
+			private function unitResult(featureSet:FeatureSet, token:Object = null):void 
+			{
+				/*var unitAttr:Object = unitTask.executeLastResult.attributes;
+				
+				unitResults.removeAll();
+				//unitCombo.prompt = "-- Select Unit --";
+				var i:int;
+				for (i = 0; i < unitAttr.length; i++) {
+				unitResults.addItem({label:unitAttr[i].UNIT_NAME});
+				}
+				var unitSortField:SortField = new SortField();
+				unitSortField.name = "label";
+				var unitSort:Sort = new Sort();
+				unitSort.fields = [unitSortField];
+				
+				unitResults.sort = unitSort;
+				unitResults.filterFunction = deDupe;
+				unitResults.refresh();*/
+				var unitAttr:Object = unitTask.executeLastResult.attributes;
+				unitResults = new ArrayCollection();
+				var i:int;
+				for (i = 0; i < unitAttr.length; i++) {
+					unitResults.addItem({label:unitAttr[i].UNIT_NAME});
+				}
+				var unitSortField:SortField = new SortField();
+				unitSortField.name = "label";
+				unitResults.getItemAt(0);
+				var unitSort:Sort = new Sort();
+				unitSort.fields = [unitSortField];
+				unitResults.sort = unitSort;
+				tempObj = {};
+				unitResults.filterFunction = deDupe;
+				
+				unitResults.refresh();
+			}
+			
+			private function zoomResult(featureSet:FeatureSet, token:Object = null):void
+			{
+				var allExtent:Extent;
+				var firstGraphic:Graphic= featureSet.features[0];                        
+				allExtent = Polygon(firstGraphic.geometry).extent;
+				var i:int;
+				for each (var graphic:Graphic in featureSet.features) {
+					allExtent = allExtent.union(Polygon(graphic.geometry).extent);
+				}
+				FlexGlobals.topLevelApplication.map.extent = allExtent; 
+				//map.extent = featureSet.features[0].geometry.extent;
+			}
+			
+			public function unitReset():void
+			{
+				unitQuery.where = "FID >= 0";
+				unitTask.execute(unitQuery, new AsyncResponder(unitResult, queryFault));
+				networkCombo.selectedIndex = -1;
+				unitCombo.selectedIndex = -1;
+			}
+			
+			private function deDupe(item:Object):Boolean {
+				// the return value
+				var retVal:Boolean = false;
+				// check the items in the itemObj Ojbect to see if it contains the value being tested
+				if (!tempObj.hasOwnProperty(item.label)) {
+					// if not found add the item to the object
+					tempObj[item.label] = item;
+					retVal = true;
+				}
+				return retVal;
+				// or if you want to feel like a total bad ass and use only one line of code, use a tertiary statement ;)
+				// return (tempObj.hasOwnProperty(item.label) ? false : tempObj[item.label] = item && true);
+			}
+			
+			private function queryFault(info:Object, token:Object = null):void
+			{
+				Alert.show(info.toString());
+			} 
+			
+		]]>
+	</fx:Script>
+	
+	<mx:Box id="finderTools" color="black" backgroundColor="0xFFFFFF" borderStyle="solid" borderColor="white" paddingBottom="5" paddingLeft="15" paddingRight="15" paddingTop="15" >
+		<mx:Text width="290" text="Choose from the dropdown lists or enter text to find a specific unit or network.  Choosing a network will narrow the list of units to the units in that network." />
+		<mx:Form paddingTop="10">
+			<mx:FormItem label="Network:">
+				<s:ComboBox id="networkCombo" width="180" enabled="{networks.length > 0}" dataProvider="{networks}" close="networkChoose(event)"/>
+			</mx:FormItem>
+			<mx:FormItem label="Unit:">
+				<s:ComboBox id="unitCombo" width="180" enabled="{unitResults.length > 0}" visible="true" dataProvider="{unitResults}" />
+			</mx:FormItem>
+			<mx:FormItem>
+				<mx:HBox>
+					<mx:Button label="Go" click="chooseEvent(event)" />
+					<mx:Button label="Clear" toolTip="Reset to full list of units" click="unitReset()" />
+				</mx:HBox>
+			</mx:FormItem>
+		</mx:Form>
+	</mx:Box>
+	<s:BorderContainer id="loadingMask" visible="{networkCombo.enabled == false}" borderVisible="false"  borderWeight="0" height="{finderTools.height}" width="{finderTools.width}" includeInLayout="false" >
+		<s:layout> 
+			<s:VerticalLayout horizontalAlign="center" verticalAlign="middle"/> 
+		</s:layout> 
+		<s:Label text="... Loading ..." fontSize="16" fontWeight="bold" color="black" />
+	</s:BorderContainer>
+</wim:WiMInfoWindow>
