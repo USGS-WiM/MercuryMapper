@@ -15,7 +15,7 @@
       ]
     },
 
-    "homepageURL": "https://ccviewer.wim.usgs.gov/MercuryMapper",
+    "homepageURL": "https://wim.usgs.gov/MercuryMapper/MercuryMapper.html",
     "downloadURL": "https://github.com/USGS-WiM/MercuryMapper/archive/master.zip",
     "disclaimerURL": "https://github.com/USGS-WiM/MercuryMapper/blob/master/DISCLAIMER.md",
     "repositoryUrl": "https://github.com/USGS-WiM/MercuryMapper",
